@@ -111,6 +111,23 @@ mwan3_lock_clean() {
 	rm -rf /var/run/mwan3.lock
 }
 
+network_get_device() {
+        local it data _iface_
+
+        data=`cat /tmp/mwan3.json | jq -r .`
+
+        it=0
+        while true; do
+                item=`echo $data | jq -r .interface[$it]`
+                [ "$item" = "null" ] && break || it=$((it+1))
+                _iface_=`echo ${item} | jq -r .name`
+                [ "$2" = "$_iface_" ] && {
+                        export "$1=`echo ${item} | jq -r .device`"
+                        break
+                }
+        done
+}
+
 mwan3_get_iface_id()
 {
 #	local _tmp _iface _iface_count
@@ -514,9 +531,9 @@ mwan3_track()
 	data=`cat /tmp/mwan3.json | jq .`
 	it=0
 	while true; do
-        	item=`echo $data | jq -r .policy[$it]`
+        	item=`echo $data | jq -r .interface[$it]`
         	[ "$item" = "null" ] && break || it=$((it+1))
-		[ $1 = `echo $item | jq -r .name` = "wan" ] && {
+		[ $1 = `echo $item | jq -r .name` ] && {
 			sdata=`echo $item | jq .track_ip`
 			for row in $(echo "${sdata}" | jq -r .[]); do
 				mwan3_list_track_ips "$row"
@@ -934,11 +951,34 @@ mwan3_get_iface_hotplug_state() {
 
 mwan3_report_iface_status()
 {
-	local device result track_ips tracking IP IPT
+	local device result track_ips tracking IP IPT it data __iface sdata
 
 	mwan3_get_iface_id id $1
 	network_get_device device $1
-	config_get enabled "$1" enabled 0
+	#config_get enabled "$1" enabled 0
+	data=`cat /tmp/mwan3.json | jq -r .`
+
+        mwan3_list_track_ips()
+        {
+                track_ips="$1 $track_ips"
+        }
+
+        it=0
+        while true; do
+                item=`echo $data | jq -r .interface[$it]`
+                [ "$item" = "null" ] && break || it=$((it+1))
+                __iface=`echo ${item} | jq -r .name`
+                [ "$1" = "$__iface" ] && {
+                        enabled=`echo ${item} | jq -r .enabled`
+				[ ${enabled} = "null" ] && enabled=0
+                        sdata=`echo $item | jq .track_ip`
+                        for row in $(echo "${sdata}" | jq -r .[]); do
+                                mwan3_list_track_ips "$row"
+                        done
+                        break
+                }
+        done
+
 	#config_get family "$1" family ipv4
 
 	#if [ "$family" == "ipv4" ]; then
@@ -963,11 +1003,11 @@ mwan3_report_iface_status()
 		result="disabled"
 	fi
 
-	mwan3_list_track_ips()
-	{
-		track_ips="$1 $track_ips"
-	}
-	config_list_foreach $1 track_ip mwan3_list_track_ips
+	#mwan3_list_track_ips()
+	#{
+	#	track_ips="$1 $track_ips"
+	#}
+	#config_list_foreach $1 track_ip mwan3_list_track_ips
 
 	if [ -n "$track_ips" ]; then
 		if [ -n "$(pgrep -f "mwan3track $1 $device")" ]; then
