@@ -1,0 +1,42 @@
+#!/bin/sh -e
+
+START=19
+
+data=`cat /tmp/mwan3.json | jq .`
+
+reload() {
+	local enabled
+
+	#config_load mwan3
+	#config_get_bool enabled globals 'enabled' 0
+	enabled=`echo $data | jq .globals.enabled`
+	[ ${enabled} -gt 0 ] || {
+		echo "Warning: mwan3 is global disabled. Usage: /etc/init.d/mwan3 start"
+		exit 0
+	}
+	echo "restarting"
+	mwan3 restart
+}
+
+boot() {
+	#. /lib/config/uci.sh
+	#uci_toggle_state mwan3 globals enabled "1"
+	echo $data | jq .globals.enabled=1 > /tmp/mwan3.json
+	echo "booting"	
+}
+
+start() {
+	#. /lib/config/uci.sh
+	#uci_toggle_state mwan3 globals enabled "1"
+	echo $data | jq .globals.enabled=1 > /tmp/mwan3.json	
+	echo "starting"
+	mwan3 start
+}
+
+stop() {
+	#. /lib/config/uci.sh
+	#uci_toggle_state mwan3 globals enabled "0"
+	echo $data | jq .globals.enabled=0 > /tmp/mwan3.json	
+	echo "stopping"
+	mwan3 stop
+}
