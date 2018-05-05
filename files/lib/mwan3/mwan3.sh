@@ -73,8 +73,11 @@ mwan3_init()
 		#MWAN3_INTERFACE_MAX=$(uci_get_state mwan3 globals iface_max)
 		MWAN3_INTERFACE_MAX=`echo $data | jq -r .globals.iface_max`
 	else
-		config_load mwan3
-		config_get MMX_MASK globals mmx_mask '0x3F00'
+		#config_load mwan3
+		#config_get MMX_MASK globals mmx_mask '0x3F00'
+		MMX_MASK=`echo $data | jq -r .globals.mmx_mask`
+        	[ "$MMX_MASK" = "null" ] && MMX_MASK=0x3F00
+
 		echo "$MMX_MASK" > "${MWAN3_STATUS_DIR}/mmx_mask"
 		$LOG notice "Using firewall mask ${MMX_MASK}"
 
@@ -82,7 +85,7 @@ mwan3_init()
 		mmdefault=$(((1<<bitcnt)-1))
 		MWAN3_INTERFACE_MAX=$(($mmdefault-3))
 		#uci_toggle_state mwan3 globals iface_max "$MWAN3_INTERFACE_MAX"
-		echo $data | jq .globals.iface_max=$MWAN3_INTERFACE_MAX > /tmp/mwan3.json
+		echo $data | jq -r .globals.iface_max=$MWAN3_INTERFACE_MAX > /tmp/mwan3.json
 		data=`cat /tmp/mwan3.json | jq .`
 		$LOG notice "Max interface count is ${MWAN3_INTERFACE_MAX}"
 	fi
@@ -1047,30 +1050,30 @@ mwan3_report_policies_v4()
 	done
 }
 
-mwan3_report_policies_v6()
-{
-	local percent policy share total_weight weight iface
-
-	for policy in $($IPT6 -S | awk '{print $2}' | grep mwan3_policy_ | sort -u); do
-		echo "$policy:" | sed 's/mwan3_policy_//'
-
-		[ -n "$total_weight" ] || total_weight=$($IPT6 -S $policy | cut -s -d'"' -f2 | head -1 | awk '{print $3}')
-
-		if [ ! -z "${total_weight##*[!0-9]*}" ]; then
-			for iface in $($IPT6 -S $policy | cut -s -d'"' -f2 | awk '{print $1}'); do
-				weight=$($IPT6 -S $policy | cut -s -d'"' -f2 | awk '$1 == "'$iface'"' | awk '{print $2}')
-				percent=$(($weight*100/$total_weight))
-				echo " $iface ($percent%)"
-			done
-		else
-			echo " $($IPT6 -S $policy | sed '/.*--comment \([^ ]*\) .*$/!d;s//\1/;q')"
-		fi
-
-		unset total_weight
-
-		echo -e
-	done
-}
+#mwan3_report_policies_v6()
+#{
+#	local percent policy share total_weight weight iface
+#
+#	for policy in $($IPT6 -S | awk '{print $2}' | grep mwan3_policy_ | sort -u); do
+#		echo "$policy:" | sed 's/mwan3_policy_//'
+#
+#		[ -n "$total_weight" ] || total_weight=$($IPT6 -S $policy | cut -s -d'"' -f2 | head -1 | awk '{print $3}')
+#
+#		if [ ! -z "${total_weight##*[!0-9]*}" ]; then
+#			for iface in $($IPT6 -S $policy | cut -s -d'"' -f2 | awk '{print $1}'); do
+#				weight=$($IPT6 -S $policy | cut -s -d'"' -f2 | awk '$1 == "'$iface'"' | awk '{print $2}')
+#				percent=$(($weight*100/$total_weight))
+#				echo " $iface ($percent%)"
+#			done
+#		else
+#			echo " $($IPT6 -S $policy | sed '/.*--comment \([^ ]*\) .*$/!d;s//\1/;q')"
+#		fi
+#
+#		unset total_weight
+#
+#		echo -e
+#	done
+#}
 
 mwan3_report_connected_v4()
 {
@@ -1083,16 +1086,16 @@ mwan3_report_connected_v4()
 	fi
 }
 
-mwan3_report_connected_v6()
-{
-	local address
-
-	if [ -n "$($IPT6 -S mwan3_connected 2> /dev/null)" ]; then
-		for address in $($IPS list mwan3_connected_v6 | egrep '([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'); do
-			echo " $address"
-		done
-	fi
-}
+#mwan3_report_connected_v6()
+#{
+#	local address
+#
+#	if [ -n "$($IPT6 -S mwan3_connected 2> /dev/null)" ]; then
+#		for address in $($IPS list mwan3_connected_v6 | egrep '([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'); do
+#			echo " $address"
+#		done
+#	fi
+#}
 
 mwan3_report_rules_v4()
 {
@@ -1101,18 +1104,29 @@ mwan3_report_rules_v4()
 	fi
 }
 
-mwan3_report_rules_v6()
-{
-	if [ -n "$($IPT6 -S mwan3_rules 2> /dev/null)" ]; then
-		$IPT6 -L mwan3_rules -n -v 2> /dev/null | tail -n+3 | sed 's/mark.*//' | sed 's/mwan3_policy_/- /' | sed 's/mwan3_rule_/S /'
-	fi
-}
+#mwan3_report_rules_v6()
+#{
+#	if [ -n "$($IPT6 -S mwan3_rules 2> /dev/null)" ]; then
+#		$IPT6 -L mwan3_rules -n -v 2> /dev/null | tail -n+3 | sed 's/mark.*//' | sed 's/mwan3_policy_/- /' | sed 's/mwan3_rule_/S /'
+#	fi
+#}
 
 mwan3_flush_conntrack()
 {
-	local flush_conntrack
+	local flush_conntrack data it item
 
-	config_get flush_conntrack $1 flush_conntrack never
+	#config_get flush_conntrack $1 flush_conntrack never
+    data=`cat /tmp/mwan3.json | jq .`
+    it=0
+    while true; do
+            item=`echo $data | jq -r .interface[$it]`
+            [ "$item" = "null" ] && break || it=$((it+1))
+            [ "$1" = `echo $item | jq -r .name` ] && {
+                    flush_conntrack=`echo $item | jq -r .flush_conntrack`
+                    [ "$flush_conntrack" = "null" ] && flush_conntrack=never
+                    break
+            }
+    done
 
 	if [ -e "$CONNTRACK_FILE" ]; then
 		case $flush_conntrack in

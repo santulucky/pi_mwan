@@ -1,7 +1,7 @@
 #!/bin/sh
 
-. /lib/functions.sh
-. /lib/functions/network.sh
+#. /lib/functions.sh
+#. /lib/functions/network.sh
 . /lib/mwan3/mwan3.sh
 
 help()
@@ -26,6 +26,7 @@ EOF
 
 ifdown()
 {
+	local data it item
 	if [ -z "$1" ]; then
 		echo "Error: Expecting interface. Usage: mwan3 ifdown <interface>" && exit 0
 	fi
@@ -34,7 +35,18 @@ ifdown()
 		echo "Error: Too many arguments. Usage: mwan3 ifdown <interface>" && exit 0
 	fi
 
-	ACTION=ifdown INTERFACE=$1 /sbin/hotplug-call iface
+	#ACTION=ifdown INTERFACE=$1 /sbin/hotplug-call iface
+
+	data=`cat /tmp/mwan3.json | jq -r .`
+	it=0
+	while true; do
+		item=`echo $data | jq -r .interface[$it]`
+		[ "$item" = "null" ] && break || it=$((it+1))
+		[ "$1" = `echo $item | jq -r .name` ] && {
+				ACTION=ifdown INTERFACE=$1 DEVICE=`echo $item | jq -r .device` sh /etc/hotplug.d/iface/15-mwan3
+				break
+		}
+	done
 
 	kill $(pgrep -f "mwan3track $1 $2") &> /dev/null
 	mwan3_track_clean $1
@@ -42,9 +54,9 @@ ifdown()
 
 ifup()
 {
-	local device enabled
+	local device enabled data it item 
 
-	config_load mwan3
+	#config_load mwan3
 
 	if [ -z "$1" ]; then
 		echo "Expecting interface. Usage: mwan3 ifup <interface>" && exit 0
@@ -54,27 +66,48 @@ ifup()
 		echo "Too many arguments. Usage: mwan3 ifup <interface>" && exit 0
 	fi
 
-	config_get_bool enabled globals 'enabled' 0
+	data=`cat /tmp/mwan3.json | jq -r .`
+	#config_get_bool enabled globals 'enabled' 0
+	enabled=`echo $data | jq -r .globals.enabled`
+	[ ${enabled} = "null" ] && enabled=0
 	[ ${enabled} -gt 0 ] || {
 		echo "Warning: mwan3 is global disabled. Usage: /etc/init.d/mwan3 start"
 		exit 0
 	}
 
-	config_get enabled "$1" enabled 0
+	#config_get enabled "$1" enabled 0
 
-	device=$(uci -p /var/state get network.$1.ifname) &> /dev/null
+	it=0
+	while true; do
+		item=`echo $data | jq -r .interface[$it]`
+		[ "$item" = "null" ] && break || it=$((it+1))
+		[ "$1" = `echo $item | jq -r .name` ] && {
+			device=`echo $item | jq -r .device`
+			[ "$device" = "null" ] && device=""
+			break
+		}
+	done
+
+	#device=$(uci -p /var/state get network.$1.ifname) &> /dev/null
 
 	if [ -n "$device" ] ; then
-		[ "$enabled" -eq 1 ] && ACTION=ifup INTERFACE=$1 DEVICE=$device /sbin/hotplug-call iface
+		[ "$enabled" -eq 1 ] && ACTION=ifup INTERFACE=$1 DEVICE=$device sh /etc/hotplug.d/iface/14-mwan3 && ACTION=ifup INTERFACE=$1 DEVICE=$device sh /etc/hotplug.d/iface/15-mwan3
 	fi
 }
 
 interfaces()
 {
-	config_load mwan3
-
+	local data it item
+	#config_load mwan3
 	echo "Interface status:"
-	config_foreach mwan3_report_iface_status interface
+	#config_foreach mwan3_report_iface_status interface
+	data=`cat /tmp/mwan3.json | jq -r .`
+	it=0
+	while true; do
+		item=`echo $data | jq -r .interface[$it]`
+		[ "$item" = "null" ] && break || it=$((it+1))
+		mwan3_report_iface_status `echo $item | jq -r .name`
+	done
 	echo -e
 }
 
@@ -83,9 +116,9 @@ policies()
 	echo "Current ipv4 policies:"
 	mwan3_report_policies_v4
 	echo -e
-	echo "Current ipv6 policies:"
-	mwan3_report_policies_v6
-	echo -e
+	#echo "Current ipv6 policies:"
+	#mwan3_report_policies_v6
+	#echo -e
 }
 
 connected()
@@ -93,9 +126,9 @@ connected()
 	echo "Directly connected ipv4 networks:"
 	mwan3_report_connected_v4
 	echo -e
-	echo "Directly connected ipv6 networks:"
-	mwan3_report_connected_v6
-	echo -e
+	#echo "Directly connected ipv6 networks:"
+	#mwan3_report_connected_v6
+	#echo -e
 }
 
 rules()
@@ -103,9 +136,9 @@ rules()
 	echo "Active ipv4 user rules:"
 	mwan3_report_rules_v4
 	echo -e
-	echo "Active ipv6 user rules:"
-	mwan3_report_rules_v6
-	echo -e
+	#echo "Active ipv6 user rules:"
+	#mwan3_report_rules_v6
+	#echo -e
 }
 
 status()
@@ -118,21 +151,30 @@ status()
 
 start()
 {
-	local enabled
+	local enabled data it item
 
-	config_load mwan3
-	config_get_bool enabled globals 'enabled' 0
+	#config_load mwan3
+	data=`cat /tmp/mwan3.json | jq -r .`
+	#config_get_bool enabled globals 'enabled' 0
+	enabled=`echo $data | jq -r .globals.enabled`
+	[ ${enabled} = "null" ] && enabled=0
 	[ ${enabled} -gt 0 ] || {
 		echo "Warning: mwan3 is global disabled. Usage: /etc/init.d/mwan3 start"
 		exit 0
 	}
 
-	config_foreach ifup interface
+	#config_foreach ifup interface
+	it=0
+	while true; do
+		item=`echo $data | jq -r .interface[$it]`
+		[ "$item" = "null" ] && break || it=$((it+1))
+			ifup `echo $item | jq -r .name`
+	done
 }
 
 stop()
 {
-	local ipset route rule table IP IPT pid
+	local ipset route rule table IP IPT pid data it item
 
 	for pid in $(pgrep -f "mwan3track"); do
 		kill -TERM "$pid" > /dev/null 2>&1
@@ -140,10 +182,19 @@ stop()
 		kill -KILL "$pid" > /dev/null 2>&1
 	done
 
-	config_load mwan3
-	config_foreach mwan3_track_clean interface
+	#config_load mwan3
+	data=`cat /tmp/mwan3.json | jq -r .`
 
-	for IP in "$IP4" "$IP6"; do
+	#config_foreach mwan3_track_clean interface
+	it=0
+	while true; do
+		item=`echo $data | jq -r .interface[$it]`
+		[ "$item" = "null" ] && break || it=$((it+1))
+		mwan3_track_clean `echo $item | jq -r .name`
+	done
+
+	#for IP in "$IP4" "$IP6"; do
+	for IP in "$IP4"; do
 
 		for route in $(seq 1 $MWAN3_INTERFACE_MAX); do
 			$IP route flush table $route &> /dev/null
@@ -154,7 +205,8 @@ stop()
 		done
 	done
 
-	for IPT in "$IPT4" "$IPT6"; do
+	#for IPT in "$IPT4" "$IPT6"; do
+	for IPT in "$IPT4"; do
 
 		$IPT -D PREROUTING -j mwan3_hook &> /dev/null
 		$IPT -D OUTPUT -j mwan3_hook &> /dev/null

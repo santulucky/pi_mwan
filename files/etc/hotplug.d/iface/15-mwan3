@@ -17,7 +17,7 @@ data=`cat /tmp/mwan3.json | jq .`
 LOG=echo
 
 #config_get_bool enabled globals 'enabled' '0'
-enabled=`echo $data | jq .globals.enabled`
+enabled=`echo $data | jq -r .globals.enabled`
 [ ${enabled} = "null" ] && enabled=0
 [ ${enabled} -gt 0 ] || exit 0
 
