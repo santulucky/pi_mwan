@@ -5,8 +5,7 @@ IP4="ip -4"
 IPS="ipset"
 IPT4="iptables -t mangle -w"
 #IPT6="ip6tables -t mangle -w"
-#LOG="logger -t mwan3[$$] -p"
-LOG=echo
+LOG="logger -t mwan3[$$] -p"
 CONNTRACK_FILE="/proc/net/nf_conntrack"
 
 MWAN3_STATUS_DIR="/var/run/mwan3"

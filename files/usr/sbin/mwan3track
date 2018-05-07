@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /lib/functions.sh
+#. /lib/functions.sh
 . /lib/mwan3/common.sh
 
 LOG="logger -t $(basename "$0")[$$] -p"
@@ -54,6 +54,7 @@ main() {
 	local reliability count timeout interval failure_interval
 	local recovery_interval down up size
 	local keep_failure_interval
+	local it data item
 
 	[ -z "$5" ] && echo "Error: should not be started manually" && exit 0
 
@@ -65,8 +66,41 @@ main() {
 	trap clean_up TERM
 	trap if_down USR1
 
-	config_load mwan3
-	config_get track_method $1 track_method ping
+	#config_load mwan3
+	#config_get track_method $1 track_method ping
+
+        it=0
+        while true; do
+                item=`echo $data | jq -r .interface[$it]`
+                [ "$item" = "null" ] && break || it=$((it+1))
+                [ $1 = `echo $item | jq -r .name` ] && {
+                        reliability=`echo $item | jq -r .reliability`
+                        [ "$reliability" = "null" ] && reliability=1
+                        count=`echo $item | jq -r .count`
+                        [ "$count" = "null" ] && count=1
+                        timeout=`echo $item | jq -r .timeout`
+                        [ "$timeout" = "null" ] && timeout=4
+                        interval=`echo $item | jq -r .interval`
+                        [ "$interval" = "null" ] && interval=10
+                        down=`echo $item | jq -r .down`
+                        [ "$down" = "null" ] && down=5
+                        up=`echo $item | jq -r .up`
+                        [ "$up" = "null" ] && up=5
+                        size=`echo $item | jq -r .size`
+                        [ "$size" = "null" ] && size=56
+                        failure_interval=`echo $item | jq -r .failure_interval`
+                        [ "$failure_interval" = "null" ] && failure_interval=$interval
+                        keep_failure_interval=`echo $item | jq -r .keep_failure_interval`
+                        [ "$keep_failure_interval" = "null" ] && keep_failure_interval=0
+                        recovery_interval=`echo $item | jq -r .recovery_interval`
+                        [ "$recovery_interval" = "null" ] && recovery_interval=$interval
+                        track_method=`echo $item | jq -r .track_method`
+                        [ "$track_method" = "null" ] && track_method=ping
+                        break
+                }
+
+        done
+
 	validate_track_method $track_method $SRC_IP || {
 		track_method=ping
 		if validate_track_method $track_method; then
@@ -76,16 +110,17 @@ main() {
 			exit 1
 		fi
 	}
-	config_get reliability $1 reliability 1
-	config_get count $1 count 1
-	config_get timeout $1 timeout 4
-	config_get interval $1 interval 10
-	config_get down $1 down 5
-	config_get up $1 up 5
-	config_get size $1 size 56
-	config_get failure_interval $1 failure_interval $interval
-	config_get_bool keep_failure_interval $1 keep_failure_interval 0
-	config_get recovery_interval $1 recovery_interval $interval
+
+#	config_get reliability $1 reliability 1
+#	config_get count $1 count 1
+#	config_get timeout $1 timeout 4
+#	config_get interval $1 interval 10
+#	config_get down $1 down 5
+#	config_get up $1 up 5
+#	config_get size $1 size 56
+#	config_get failure_interval $1 failure_interval $interval
+#	config_get_bool keep_failure_interval $1 keep_failure_interval 0
+#	config_get recovery_interval $1 recovery_interval $interval
 
 	local score=$(($down+$up))
 	local track_ips=$(echo $* | cut -d ' ' -f 5-99)
