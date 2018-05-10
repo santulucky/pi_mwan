@@ -13,7 +13,7 @@ if [ "$ACTION" = "ifup" ]; then
 fi
 
 #config_load mwan3
-data=`cat /tmp/mwan3.json | jq .`
+data=`jq -r . /tmp/mwan3.json`
 LOG=echo
 
 #config_get_bool enabled globals 'enabled' '0'

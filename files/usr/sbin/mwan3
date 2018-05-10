@@ -37,7 +37,7 @@ ifdown()
 
 	#ACTION=ifdown INTERFACE=$1 /sbin/hotplug-call iface
 
-	data=`cat /tmp/mwan3.json | jq -r .`
+	data=`jq -r . /tmp/mwan3.json`
 	it=0
 	while true; do
 		item=`echo $data | jq -r .interface[$it]`
@@ -66,7 +66,7 @@ ifup()
 		echo "Too many arguments. Usage: mwan3 ifup <interface>" && exit 0
 	fi
 
-	data=`cat /tmp/mwan3.json | jq -r .`
+	data=`jq -r . /tmp/mwan3.json`
 	#config_get_bool enabled globals 'enabled' 0
 	enabled=`echo $data | jq -r .globals.enabled`
 	[ ${enabled} = "null" ] && enabled=0
@@ -101,7 +101,7 @@ interfaces()
 	#config_load mwan3
 	echo "Interface status:"
 	#config_foreach mwan3_report_iface_status interface
-	data=`cat /tmp/mwan3.json | jq -r .`
+	data=`jq -r . /tmp/mwan3.json`
 	it=0
 	while true; do
 		item=`echo $data | jq -r .interface[$it]`
@@ -154,7 +154,7 @@ start()
 	local enabled data it item
 
 	#config_load mwan3
-	data=`cat /tmp/mwan3.json | jq -r .`
+	data=`jq -r . /tmp/mwan3.json`
 	#config_get_bool enabled globals 'enabled' 0
 	enabled=`echo $data | jq -r .globals.enabled`
 	[ ${enabled} = "null" ] && enabled=0
@@ -183,7 +183,7 @@ stop()
 	done
 
 	#config_load mwan3
-	data=`cat /tmp/mwan3.json | jq -r .`
+	data=`jq -r . /tmp/mwan3.json`
 
 	#config_foreach mwan3_track_clean interface
 	it=0

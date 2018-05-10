@@ -2,7 +2,7 @@
 
 START=19
 
-data=`cat /tmp/mwan3.json | jq .`
+data=`jq -r . /tmp/mwan3.json`
 
 reload() {
 	local enabled

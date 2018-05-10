@@ -62,7 +62,7 @@ mwan3_init()
 	local mmdefault
 	local data
 
-	data=`cat /tmp/mwan3.json | jq .`
+	data=`jq -r . /tmp/mwan3.json`
 
 	[ -d $MWAN3_STATUS_DIR ] || mkdir -p $MWAN3_STATUS_DIR/iface_state
 
@@ -85,7 +85,7 @@ mwan3_init()
 		MWAN3_INTERFACE_MAX=$(($mmdefault-3))
 		#uci_toggle_state mwan3 globals iface_max "$MWAN3_INTERFACE_MAX"
 		echo $data | jq -r .globals.iface_max=$MWAN3_INTERFACE_MAX > /tmp/mwan3.json
-		data=`cat /tmp/mwan3.json | jq .`
+		data=`jq -r . /tmp/mwan3.json`
 		$LOG notice "Max interface count is ${MWAN3_INTERFACE_MAX}"
 	fi
 
@@ -116,7 +116,7 @@ mwan3_lock_clean() {
 network_get_device() {
         local it data _iface_
 
-        data=`cat /tmp/mwan3.json | jq -r .`
+        data=`jq -r . /tmp/mwan3.json`
 
         it=0
         while true; do
@@ -145,7 +145,7 @@ mwan3_get_iface_id()
 #	export "$1=$_tmp"
         local it data _tmp _iface _iface_count iface
 
-        data=`cat /tmp/mwan3.json | jq -r .`
+        data=`jq -r . /tmp/mwan3.json`
 
         _iface="$2"
 
@@ -530,7 +530,7 @@ mwan3_track()
 		track_ips="$track_ips $1"
 	}
 	#config_list_foreach $1 track_ip mwan3_list_track_ips
-	data=`cat /tmp/mwan3.json | jq .`
+	data=`jq -r . /tmp/mwan3.json`
 	it=0
 	while true; do
         	item=`echo $data | jq -r .interface[$it]`
@@ -574,7 +574,7 @@ mwan3_set_policy()
 #	config_get metric $1 metric 1
 #	config_get weight $1 weight 1
 
-	data=`cat /tmp/mwan3.json | jq .`
+	data=`jq -r . /tmp/mwan3.json`
 
         it=0
         while true; do
@@ -724,7 +724,7 @@ mwan3_create_policies_iptables()
 mwan3_set_policies_iptables()
 {
 	local it item data
-	data=`cat /tmp/mwan3.json | jq .`
+	data=`jq -r . /tmp/mwan3.json`
 	#config_foreach mwan3_create_policies_iptables policy
 	it=0
 	while true; do
@@ -846,7 +846,7 @@ mwan3_set_user_iptables_rule()
 				#$IPS -! add mwan3_sticky_$rule mwan3_sticky_v6_$rule
 
 				#config_foreach mwan3_set_sticky_iptables interface
-				data=`cat /tmp/mwan3.json | jq -r .`
+				data=`jq -r . /tmp/mwan3.json`
 				it=0
 				while true; do
 					item=`echo $data | jq -r .interface[$it]`
@@ -958,7 +958,7 @@ mwan3_report_iface_status()
 	mwan3_get_iface_id id $1
 	network_get_device device $1
 	#config_get enabled "$1" enabled 0
-	data=`cat /tmp/mwan3.json | jq -r .`
+	data=`jq -r . /tmp/mwan3.json`
 
         mwan3_list_track_ips()
         {
@@ -1115,7 +1115,7 @@ mwan3_flush_conntrack()
 	local flush_conntrack data it item
 
 	#config_get flush_conntrack $1 flush_conntrack never
-    data=`cat /tmp/mwan3.json | jq .`
+    data=`jq -r . /tmp/mwan3.json`
     it=0
     while true; do
             item=`echo $data | jq -r .interface[$it]`
