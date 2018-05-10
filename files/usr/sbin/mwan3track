@@ -68,6 +68,7 @@ main() {
 
 	#config_load mwan3
 	#config_get track_method $1 track_method ping
+	data=`jq -r . /tmp/mwan3.json`
 
         it=0
         while true; do
